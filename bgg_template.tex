@@ -1,0 +1,136 @@
+{% raw %}
+\documentclass{article}
+\usepackage{filecontents}
+
+% Here's the package file
+\begin{filecontents*}{tagstoc.sty}
+\usepackage{tocloft,etoolbox}
+
+% Declare the master TOC.  This will contain:
+% * A list of tags
+% * A sequence of entries where tags are referenced
+% and it will be used multiple times to generate lists of tag usage
+\newlistof{game}{snip}{All Games}
+\newlistof{tags}{tags}{}
+\renewcommand*\cfttagstitlefont{\Large\bfseries}% For example
+
+% Use this in the preamble to make a new tag.
+\newcommand*\declaretag[1]{%
+ \newlistentry[tags]{tag#1}{tags}{0}%
+ \listadd\Tags{#1}%
+ %\addtocontents{tags}{(#1) }%
+}
+% This is only true when printing the list of tags
+\newif\ifprintingtags
+% This makes sure that the list of tags is not printed most of the time...
+\addtocontents{tags}{\protect\ifprintingtags}
+% ...because it wraps the entire TOC from the preamble
+\AtBeginDocument{\addtocontents{tags}{\protect\fi}}
+
+% This is a rather inefficient way to selectively print particular tags.
+% Presumably, I should just pop each tag from the list as I go,
+% but etoolbox doesn't seem to handle stacks.  Probably I'm missing something.
+\newcommand*\deactivatetag[1]{%
+ \expandafter\let\csname l@tag#1\endcsname=\@gobbletwo
+}
+\newcommand*\activatetag[1]{%
+ \forlistloop\deactivatetag\Tags
+ \expandafter\let\csname l@tag#1\endcsname=\l@section
+}
+
+% These are hooks for the user
+\providecommand*\currenttag{}
+\providecommand*\listoftagstitle{}
+% This prints all the references to a particular tag.
+% Effectively, it's a partial ToC for that tag.
+\newcommand*\dotag[1]{%
+ \renewcommand*\currenttag{#1}%
+ \begingroup
+  \activatetag{#1}%
+  \section*{\listoftagstitle}%
+  \@input{\jobname.tags}%
+ \endgroup
+}%
+% This prints the games, placed (with repeats) beneath their tags.
+% It also prints a list of defined tags, more or less as an excuse
+% to have \listoftags handle the .tags auxiliary ToC file.
+\newcommand*\gamesbytag{%
+ \forlistloop\dotag\Tags
+ \activatetag{}
+ \printingtagstrue
+ \listoftags
+}
+
+% This is how to proclaim a game, which is what gets tagged.
+\providecommand*\gamename{}
+\newcommand*\gametitle{\thegame. \gamename}
+\newcommand*\game[1]{%
+ \refstepcounter{game}%
+ \renewcommand*\gamename{#1}%
+ \section*{\gametitle}%
+ \addcontentsline{snip}{game}{\gametitle}
+}
+
+% In case of no hyperref
+\providecommand\phantomsection{}
+% This is how you place a tag beneath a game.
+\newcommand*\placetag[1]{%
+ \phantomsection% In case of hyperref
+ \addcontentsline{tags}{tag#1}{\gametitle}%
+}
+\end{filecontents*}
+
+\usepackage{tagstoc}
+
+\renewcommand*\listoftagstitle{\currenttag}
+% Preferred way to declare tags.  They will be printed in this order.
+{% endraw %}
+{{'\\forcsvlist\declaretag{' + ','.join(cats) + '}'}}
+
+\title{Board Game Collection}
+\author{Taylor Smith}
+
+\begin{document}
+\maketitle
+\newpage
+\listofgame
+\newpage
+ \gamesbytag
+ \newpage
+        
+     {% for game in games %}
+        {{'\game{'+game.name.replace('&','\&')+'}'}}
+            {% for cat in game.categories %}
+                {{'\placetag{Category: '+cat+'}'}}
+            {% endfor %}
+            {% if game.min_players <= 1 and game.max_players >= 1 %}
+            \placetag{Players: 1}
+            {% endif %}
+            {% if game.min_players <= 2 and game.max_players >= 2 %}
+            \placetag{Players: 2}
+            {% endif %}
+            {% if game.min_players <= 3 and game.max_players >= 3 %}
+            \placetag{Players: 3}
+            {% endif %}
+            {% if game.min_players <= 4 and game.max_players >= 4 %}
+            \placetag{Players: 4}
+            {% endif %}
+            {% if game.min_players <= 5 and game.max_players >= 5 %}
+            \placetag{Players: 5}
+            {% endif %}
+            {% if game.min_players <= 6 and game.max_players >= 6 %}
+            \placetag{Players: 6}
+            {% endif %}
+            {% if game.min_players <= 7 and game.max_players >= 7 %}
+            \placetag{Players: 7}
+            {% endif %}
+            {% if game.min_players <= 8 and game.max_players >= 8 %}
+            \placetag{Players: 8}
+            {% endif %}
+ {{game.description.replace('&','\&').replace('#','\#').replace('$','\$').replace('{','\{').replace('}','\}')}} 
+		\noindent\textbf{Categories: {{','.join(game.categories)}} } \\
+		\textbf{Time to play: {{game.min_playing_time~'-'~game.max_playing_time}} } \\
+		\textbf{Players: {{game.min_players~'-'~game.max_players}} } \\
+		\textbf{Rating: {{game.rating_average}} }
+    {% endfor %}   
+\end{document}
